@@ -16,7 +16,12 @@ Pipe.prototype.update = function () {
 };
 Pipe.prototype.render = function (ctx) {
   ctx.save();
-  ctx.fillStyle = "#00E800";
+  var gradient = ctx.createLinearGradient(this.x, this.y, this.x + this.width, this.y);
+  gradient.addColorStop(0, "#00E800");
+  gradient.addColorStop(0.7, "rgba(195, 254, 193, 1)");
+  gradient.addColorStop(1, "#00E800");
+  // ctx.fillStyle = "#00E800";
+  ctx.fillStyle = gradient;
   ctx.fillRect(this.x, this.y, this.width, this.height);
   ctx.lineWidth = 10;
   ctx.strokeRect(this.x, this.y, this.width, this.height);
@@ -44,15 +49,25 @@ var _Pipe2 = _interopRequireDefault(_Pipe);
 
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
-function generatePipe(pipes) {
+function PipeGenerator(pipes) {
+  var _this = this;
+
+  this.pipes = pipes;
+  this.generatePipe(pipes);
+  setInterval(function () {
+    _this.generatePipe();
+  }, 3000);
+}
+
+PipeGenerator.prototype.generatePipe = function () {
   var heightTop = Math.random() * 250 + 100;
-  var heightBottom = 600 - heightTop - 150;
+  var heightBottom = 600 - heightTop - 250;
   var pipeTop = new _Pipe2.default(1000, -10, 3, 150, heightTop);
   var pipeBottom = new _Pipe2.default(1000, 610 - heightBottom, 3, 150, heightBottom);
-  pipes.push(pipeTop);
-  pipes.push(pipeBottom);
-}
-exports.default = generatePipe;
+  this.pipes.push(pipeTop);
+  this.pipes.push(pipeBottom);
+};
+exports.default = PipeGenerator;
 
 },{"./Pipe.js":1}],3:[function(require,module,exports){
 "use strict";
@@ -109,25 +124,48 @@ var ctx = canvas.getContext("2d");
 var pipes = [];
 
 window.onload = function () {
-  var bird = new _bird2.default(70, 50);
-  setInterval(_PipeGenerator2.default, 3000, pipes);
-  function initGameLoop() {
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    _Scene2.default.update();
-    _Scene2.default.render(ctx);
-    bird.update();
-    bird.render(ctx);
-    pipes.forEach(function (pipe, i) {
-      if (pipe.x < -pipe.width) {
-        delete pipes[i];
-      } else {
-        pipe.update();
-        pipe.render(ctx);
-      }
-    });
-    window.requestAnimationFrame(initGameLoop);
-  }
-  initGameLoop();
+    var bird = new _bird2.default(150, 50);
+    new _PipeGenerator2.default(pipes);
+    function initGameLoop() {
+        bird.detectCollisions(pipes);
+        if (!bird.dead) {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            _Scene2.default.update();
+            _Scene2.default.render(ctx);
+            bird.update();
+            bird.render(ctx);
+            pipes.forEach(function (pipe, i) {
+                if (pipe.x < -pipe.width) {
+                    delete pipes[i];
+                } else {
+                    pipe.update();
+                    pipe.render(ctx);
+                }
+            });
+        } else {
+            ctx.font = "50px Georgia";
+            ctx.fillStyle = "#00E800";
+            ctx.lineWidth = 5;
+            ctx.strokeText("Game Over", 400, 350);
+            ctx.fillRect(400, 370, 250, 70);
+            ctx.strokeRect(400, 370, 250, 70);
+            ctx.strokeText("Replay", 450, 420);
+            // document.getElementById('canvas').doMouseOver = (e)=>{
+            //   if(e.x>400&&e.x<650&&e.y>370&&e.y<440){
+            //     ctx.fillStyle = 'red';
+            //     ctx.fill();
+            //   }
+            // }
+            document.getElementById('canvas').onclick = function (e) {
+                if (e.x > 400 && e.x < 650 && e.y > 370 && e.y < 440) {
+                    window.location.reload();
+                }
+            };
+            return;
+        }
+        window.requestAnimationFrame(initGameLoop);
+    }
+    initGameLoop();
 };
 
 },{"./Pipe.js":1,"./PipeGenerator.js":2,"./Scene.js":3,"./bird.js":5}],5:[function(require,module,exports){
@@ -144,18 +182,25 @@ function Bird(x, y) {
     this.sprites = [document.getElementById("bird1"), document.getElementById("bird2"), document.getElementById("bird3")];
     this.currentSprite = 0;
     this.updates = 0;
+    this.angle = 0;
+    this.spriteWidth = 90;
+    this.spriteHeight = 64;
     this.initControls();
 }
 
 Bird.prototype.update = function () {
     this.updates++;
+    this.angle = this.velY * Math.PI / 100;
     if (this.updates % 18 === 0) this.currentSprite = (this.currentSprite + 1) % this.sprites.length;
     this.velY += this.gravity;
     this.y += this.velY;
 };
 Bird.prototype.render = function (ctx) {
-
-    ctx.drawImage(this.sprites[this.currentSprite], this.x, this.y, 90, 64);
+    ctx.save();
+    ctx.translate(this.x, this.y);
+    ctx.rotate(this.angle);
+    ctx.drawImage(this.sprites[this.currentSprite], -this.spriteWidth / 2, -this.spriteHeight / 2, this.spriteWidth, this.spriteHeight);
+    ctx.restore();
 };
 Bird.prototype.initControls = function () {
     var _this = this;
@@ -168,6 +213,32 @@ Bird.prototype.initControls = function () {
     });
     window.addEventListener("touchstart", function (e) {
         _this.velY = -17;
+    });
+};
+
+Bird.prototype.detectCollisions = function (pipes) {
+    var _this2 = this;
+
+    pipes.forEach(function (pipe, index) {
+        var collisionDetected = false;
+        if (pipe.y < 10) {
+            var a = _this2.x + _this2.spriteWidth / 2;
+            var b = _this2.y - _this2.spriteHeight / 2;
+            var x0 = pipe.x;
+            var y0 = pipe.y + pipe.height;
+            var x1 = pipe.x + pipe.width;
+            collisionDetected = collisionDetected || a > x0 && a < x1 && b < y0;
+        } else {
+            var _a = _this2.x + _this2.spriteWidth / 2;
+            var _b = _this2.y + _this2.spriteHeight / 2;
+            var _x = pipe.x;
+            var _x2 = pipe.x + pipe.width;
+            var y1 = pipe.y;
+            collisionDetected = collisionDetected || _a > _x && _a < _x2 && _b > y1;
+        }
+        if (collisionDetected) {
+            _this2.dead = true;
+        }
     });
 };
 

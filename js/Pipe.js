@@ -10,7 +10,12 @@ Pipe.prototype.update = function(){
 }
 Pipe.prototype.render = function(ctx){
   ctx.save();
-  ctx.fillStyle = "#00E800";
+  var gradient = ctx.createLinearGradient(this.x,this.y,this.x+this.width,this.y);
+  gradient.addColorStop(0,"#00E800");
+  gradient.addColorStop(0.7,"rgba(195, 254, 193, 1)");
+  gradient.addColorStop(1,"#00E800");
+  // ctx.fillStyle = "#00E800";
+  ctx.fillStyle = gradient;
     ctx.fillRect(this.x, this.y, this.width, this.height);
     ctx.lineWidth = 10;
     ctx.strokeRect(this.x, this.y, this.width, this.height);

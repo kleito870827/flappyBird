@@ -1,11 +1,19 @@
 import Pipe from "./Pipe.js";
 
-function generatePipe(pipes){
+function PipeGenerator(pipes){
+  this.pipes = pipes;
+  this.generatePipe(pipes);
+  setInterval(()=>{
+    this.generatePipe()
+  },  3000);
+}
+
+PipeGenerator.prototype.generatePipe = function(){
   let heightTop = Math.random()*250+100;
-  let heightBottom = 600 - heightTop -150;
+  let heightBottom = 600 - heightTop -250;
   let pipeTop = new Pipe(1000, -10 , 3, 150, heightTop);
   let pipeBottom = new Pipe(1000, 610 - heightBottom, 3, 150, heightBottom);
-  pipes.push(pipeTop);
-  pipes.push(pipeBottom);
+  this.pipes.push(pipeTop);
+  this.pipes.push(pipeBottom);
 }
-export default generatePipe;
+export default PipeGenerator;
